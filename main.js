@@ -68,20 +68,23 @@ function renderTable() {
     }
 
     pageData.forEach(item => {
-        // Xử lý ảnh: API trả về mảng, đôi khi là chuỗi JSON bị lỗi, cần clean
-        let imgUrl = "https://via.placeholder.com/50";
+        // --- XỬ LÝ ẢNH AN TOÀN ---
+        // Mặc định dùng ảnh placeholder màu xám
+        let imgUrl = "https://placehold.co/50?text=No+Image";
+        
         if (item.images && item.images.length > 0) {
-            // Clean các ký tự lạ do fakeapi đôi khi trả về string dạng '["url"]'
-            let cleanUrl = item.images[0].replace(/[\[\]"]/g, '');
-            if(cleanUrl.startsWith('http')) imgUrl = cleanUrl;
+            // Lấy phần tử đầu tiên
+            let raw = item.images[0];
+            // Regex loại bỏ các ký tự lạ như [, ], " do API trả về lỗi định dạng
+            let clean = raw.replace(/[\[\]"]/g, '');
+            // Kiểm tra xem có bắt đầu bằng http không
+            if (clean.startsWith('http')) {
+                imgUrl = clean;
+            }
         }
 
         const tr = document.createElement('tr');
-        
-        // Yêu cầu: Description hiển thị khi di chuột (title attribute)
         tr.setAttribute('title', item.description || "No description");
-        
-        // Sự kiện click vào dòng để xem chi tiết
         tr.onclick = () => openEditModal(item);
 
         tr.innerHTML = `
@@ -89,7 +92,10 @@ function renderTable() {
             <td class="fw-bold text-primary">${item.title}</td>
             <td>$${item.price}</td>
             <td><span class="badge bg-info text-dark">${item.category ? item.category.name : 'N/A'}</span></td>
-            <td><img src="${imgUrl}" class="product-img" alt="img" onerror="this.src='https://via.placeholder.com/50'"></td>
+            <td>
+                <img src="${imgUrl}" class="product-img" alt="img" 
+                     onerror="this.onerror=null; this.src='https://placehold.co/50?text=Error';">
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -97,6 +103,7 @@ function renderTable() {
     document.getElementById('pageInfo').innerText = 
         `Hiển thị ${start + 1}-${Math.min(end, filteredProducts.length)} trên tổng số ${filteredProducts.length} mục`;
 }
+
 
 function renderPagination() {
     const totalPages = Math.ceil(filteredProducts.length / pageSize);
@@ -216,6 +223,7 @@ function openCreateModal() {
     productModal.show();
 }
 
+// --- CẬP NHẬT MODAL EDIT ĐỂ HIỂN THỊ ẢNH PREVIEW ---
 function openEditModal(product) {
     // Fill data
     document.getElementById('prodId').value = product.id;
@@ -224,14 +232,28 @@ function openEditModal(product) {
     document.getElementById('prodDesc').value = product.description;
     document.getElementById('prodCategoryId').value = product.category ? product.category.id : 1;
     
-    // Handle Image
-    let img = "";
+    // Handle Image Preview
+    let img = "https://placehold.co/600x400?text=No+Image";
+    let rawVal = "";
+
     if (product.images && product.images.length > 0) {
-            img = product.images[0].replace(/[\[\]"]/g, '');
+        let clean = product.images[0].replace(/[\[\]"]/g, '');
+        if (clean.startsWith('http')) {
+            img = clean;
+            rawVal = clean;
+        }
     }
-    document.getElementById('prodImage').value = img;
-    document.getElementById('imagePreview').src = img;
-    document.getElementById('imagePreview').style.display = img ? 'block' : 'none';
+    
+    document.getElementById('prodImage').value = rawVal;
+    
+    const imgPreview = document.getElementById('imagePreview');
+    imgPreview.src = img;
+    imgPreview.style.display = 'block';
+    
+    // Xử lý lỗi ảnh trong Modal nếu link chết
+    imgPreview.onerror = function() {
+        this.src = 'https://placehold.co/600x400?text=Image+Error';
+    };
 
     // UI Setup
     document.getElementById('modalTitle').innerText = `Chỉnh sửa: ${product.title}`;
